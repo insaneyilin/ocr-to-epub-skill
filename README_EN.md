@@ -100,6 +100,11 @@ Each chapter entry:
 - Python 3.6+
 - **Zero external packages** — uses only `zipfile`, `re`, `html`, `json`, `uuid`, `sys`, `os` from the standard library.
 
-## Real-world example
+## End-to-end example
 
-This repository itself is a complete example: `raw.md` (full OCR scan), `skeleton.md` (table of contents), `chapters/` (extracted chapter files), `book.json` (configuration), and the generated `.epub` are all included for reference.
+You just hand the OCR text and table of contents to the AI assistant — the rest is fully automated:
+
+1. The AI extracts each chapter, cleans OCR noise, and writes `chapters/`
+2. The AI generates `book.json` to define chapter order
+3. The AI runs `python3 build_epub.py book.json chapters/ output.epub`
+4. A structured EPUB is produced, ready for Apple Books or any EPUB reader

@@ -102,6 +102,11 @@ python3 build_epub.py book.json [chapters_dir] [output.epub]
 - Python 3.6+
 - **零外部依赖**——仅使用标准库：`zipfile`, `re`, `html`, `json`, `uuid`, `sys`, `os`
 
-## 实际案例
+## 完整流程示例
 
-本仓库自身即是一个完整示例：`raw.md`（OCR 扫描全文）、`skeleton.md`（目录骨架）、`chapters/`（提取的章节文件）、`book.json`（配置）和生成的 `.epub` 文件均包含在内，可直接参考。
+你只需要把 OCR 全文和目录骨架交给 AI 助手，后续流程全部由 AI 自动完成：
+
+1. AI 按目录结构逐章提取正文，清理 OCR 噪声，写入 `chapters/` 目录
+2. AI 生成 `book.json` 配置章节顺序
+3. AI 运行 `python3 build_epub.py book.json chapters/ output.epub`
+4. 得到结构化的 EPUB，可在 Apple Books 等阅读器中打开
