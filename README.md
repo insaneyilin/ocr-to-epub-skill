@@ -1,69 +1,107 @@
 # OCR to EPUB
 
-从 OCR 扫描文本恢复书籍内容并生成 EPUB 电子书的工具包。
+[English version](README_EN.md)
 
-## 使用场景
+将 OCR 扫描文本恢复为结构完整的 EPUB 电子书——一个供 Claude Code / Codex 使用的 AI 技能。AI 助手负责提取章节、清理 OCR 噪声，最后用 `build_epub.py` 打包。全程零外部依赖，仅使用 Python 标准库。
 
-你有一本书的 OCR 扫描结果（`raw.md`）和目录骨架（`skeleton.md`），需要：
-1. 按章节提取、清理内容
-2. 生成结构完整的 EPUB 电子书
+## 目录结构
 
-## 工作流程
-
-### 1. 准备输入
-
-- `raw.md` — OCR 扫描全文
-- `skeleton.md` — 目录骨架（章节标题、层级结构）
-
-### 2. 提取章节
-
-按 skeleton.md 的目录结构，从 raw.md 中逐章提取内容，写入 `chapters/` 目录。命名规范：`{序号}-{章节标题}.md`。
-
-此步骤中需要清理 OCR 噪声：合并断行、修复字符乱码、修正断词，但保留全部实质论证内容。
-
-### 3. 生成 EPUB
-
-修改 `build_epub.py` 中的 `BOOK_META` 和 `CHAPTERS` 配置，然后运行：
-
-```bash
-python3 build_epub.py [chapters_dir] [output.epub]
+```
+ocr-to-epub-skill/
+├── README.md              ← 中文说明（本文件）
+├── README_EN.md           ← English version
+└── ocr-to-epub/           ← 技能主体
+    ├── SKILL.md           ← AI 运行时读取的工作流说明
+    ├── build_epub.py      ← 零依赖 EPUB 打包脚本
+    └── README.md          ← 技能级文档
 ```
 
-默认从 `../chapters/` 读取章节文件，输出 `../output.epub`。
+## 工作方式
 
-## 配置 build_epub.py
+1. **你提供**一本书的 OCR 扫描文本（原始文本或 Markdown）和目录信息（骨架文件、扫描的目录页、或口头描述的章节结构均可）。
+2. **AI 助手**读取目录，定位各章节在 OCR 文本中的起止位置，逐章提取为干净的 Markdown 文件，同时修复常见 OCR 噪声（乱码、断行、断词）。
+3. **`build_epub.py`** 将章节文件打包为合法 EPUB（`.epub`），包含元数据、目录和 CSS 样式——全部由 Python 标准库完成。
 
-### 书籍元数据
+## 安装到 Claude Code
 
-```python
-BOOK_META = {
-    "title": "书名",
-    "creator": "作者",
-    "publisher": "出版社",
-    "date": "2023-09",
-    "language": "zh-CN",
+在项目的 `.claude/settings.json` 中添加：
+
+```json
+{
+  "skills": {
+    "ocr-to-epub": {
+      "path": "ocr-to-epub-skill/ocr-to-epub",
+      "description": "从 OCR 扫描文本和目录信息恢复 EPUB 电子书。"
+    }
+  }
 }
 ```
 
-### 章节列表
+也可以注册到全局 `~/.claude/settings.json`（此时 `"path"` 需使用绝对路径）。
 
-```python
-CHAPTERS = [
-    # (文件id,  章节标题,   源文件名,   起始行, 结束行)
-    ("ch00a", "鸣谢",       "00-鸣谢与前言.md", 1,   7),
-    ("ch00b", "前言",       "00-鸣谢与前言.md", 10,  None),  # None = 读到文件末尾
-    ("ch01",  "第一章 …",  "01-xxx.md"),                      # 省略行号 = 读整个文件
-    ...
-]
+注册后，每当你要求将 OCR 文本转换为电子书，Claude Code 会自动加载 `SKILL.md`。
+
+### 作为一次性提示词
+
+也可以将 `SKILL.md` 的内容复制粘贴到任意支持长上下文的 AI 助手的提示词中。技能的主体是工作流描述，真正需要执行的工具只有 `build_epub.py` 一个脚本。
+
+## 安装到 Codex（OpenAI）
+
+1. 将 `ocr-to-epub/` 目录放到你的 Codex 项目中。
+2. 在 Codex 会话中，让 agent 读取 `SKILL.md` 作为工作流参考：
+
+   ```
+   读取 ocr-to-epub/SKILL.md 并按其中描述的工作流执行。
+   这是我的 OCR 文本：[粘贴或文件路径]
+   这是目录信息：[粘贴或文件路径]
+   ```
+
+3. 章节提取完成后，运行：
+
+   ```bash
+   python3 ocr-to-epub/build_epub.py book.json chapters/ output.epub
+   ```
+
+## 独立使用 build_epub.py
+
+`build_epub.py` 完全独立于 AI 助手，可直接在命令行使用：
+
+```bash
+python3 build_epub.py book.json [chapters_dir] [output.epub]
 ```
+
+`book.json` 格式：
+
+```json
+{
+  "meta": {
+    "title": "书名",
+    "creator": "作者",
+    "publisher": "出版社",
+    "date": "2024-01",
+    "language": "zh-CN"
+  },
+  "chapters": [
+    {"id": "ch01", "title": "第一章 标题", "file": "01-第一章.md"},
+    {"id": "ch02", "title": "第二章 标题", "file": "02-第二章.md"}
+  ]
+}
+```
+
+每章字段说明：
+
+| 字段 | 必填 | 说明 |
+|------|------|------|
+| `id` | 是 | EPUB spine 中的唯一标识符，如 `ch01` |
+| `title` | 是 | 章节标题 |
+| `file` | 是 | `chapters_dir` 下的源 Markdown 文件名 |
+| `lines` | 否 | `[起始行, 结束行]`，行号从 1 开始，`null` 表示读至文件末尾。不填则读整个文件 |
 
 ## 依赖
 
-- Python 3.6+，仅使用标准库（`zipfile`, `re`, `html`, `uuid`）
-- 零外部依赖
+- Python 3.6+
+- **零外部依赖**——仅使用标准库：`zipfile`, `re`, `html`, `json`, `uuid`, `sys`, `os`
 
-## 已知限制
+## 实际案例
 
-- Markdown → HTML 转换仅覆盖标题、段落、粗体、斜体、分隔线
-- 不支持列表、表格、脚注、图片等复杂格式
-- 面对特殊的 OCR 噪声可能需要手动调整正则表达式
+本仓库自身即是一个完整示例：`raw.md`（OCR 扫描全文）、`skeleton.md`（目录骨架）、`chapters/`（提取的章节文件）、`book.json`（配置）和生成的 `.epub` 文件均包含在内，可直接参考。
